@@ -3,8 +3,8 @@
 OWNER-FINDER — v5.2.1 HARDENED (batch, resume, robots-aware, GDPR-trim, zero outreach)
 
 Modes:
-  Single: node owner-finder.mjs --domain example.com [--paths '/azienda,/chi-siamo'] [--json]
-  Batch:  node owner-finder.mjs --file domains.txt --out results.csv [--format csv|tsv|jsonl]
+  Single: node MAILSIEVE.mjs --domain example.com [--paths '/azienda,/chi-siamo'] [--json]
+  Batch:  node MAILSIEVE.mjs --file domains.txt --out results.csv [--format csv|tsv|jsonl]
 
 Features:
 * Batch mode with resume: dedupes input, skips already-processed from output, idempotent writes
@@ -44,7 +44,7 @@ import { hideBin } from "yargs/helpers";
 const getFetch = async () => (typeof fetch !== "undefined" ? fetch : (await import("node-fetch")).default);
 
 const argv = yargs(hideBin(process.argv))
-  .scriptName("owner-finder")
+  .scriptName("MAILSIEVE")
   .usage("$0 --domain <domain> | --file domains.txt --out results.csv")
   .option("domain", { type: "string", describe: "Target registrable domain (e.g., example.com)" })
   .option("file", { type: "string", describe: "Path to newline-separated domains" })
