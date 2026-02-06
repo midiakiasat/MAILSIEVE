@@ -1,0 +1,10 @@
+node_modules/
+.cache/
+logs/
+.vscode/
+
+*.csv
+processed.txt
+.processed.set
+
+.DS_Store

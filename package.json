@@ -1,0 +1,24 @@
+{
+  "name": "owner-finder",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "bash ./build.sh"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1",
+    "esbuild": "^0.25.9",
+    "pkg": "^5.8.1"
+  },
+  "dependencies": {
+    "@fast-csv/format": "^5.0.5",
+    "@fast-csv/parse": "^5.0.5",
+    "cheerio": "^1.1.2",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
+    "psl": "^1.15.0",
+    "robots-parser": "^3.0.1",
+    "yargs": "^18.0.0"
+  }
+}
