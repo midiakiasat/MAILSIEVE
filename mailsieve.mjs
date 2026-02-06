@@ -44,7 +44,7 @@ import { hideBin } from "yargs/helpers";
 const getFetch = async () => (typeof fetch !== "undefined" ? fetch : (await import("node-fetch")).default);
 
 const argv = yargs(hideBin(process.argv))
-  .scriptName("MAILSIEVE")
+  .scriptName("mailsieve")
   .usage("$0 --domain <domain> | --file domains.txt --out results.csv")
   .option("domain", { type: "string", describe: "Target registrable domain (e.g., example.com)" })
   .option("file", { type: "string", describe: "Path to newline-separated domains" })
