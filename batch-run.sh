@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# batch-run.sh — leveled-up runner for owner-finder.mjs
+# batch-run.sh — leveled-up runner for mailsieve.mjs
 # Goals:
 # - strict mode + safe tempfiles
 # - robust normalization/deduping of domains.txt
 # - resilient resume via processed.txt
-# - optional parallelism (POLITE_CONCURRENCY), still host-paced by owner-finder
+# - optional parallelism (POLITE_CONCURRENCY), still host-paced by MAILSIEVE
 # - atomic-ish appends; avoid repeated grep scans
-# - keeps "name" output intact (owner-finder handles it)
+# - keeps "name" output intact (MAILSIEVE handles it)
 #
 # Usage:
 #   ./batch-run.sh
@@ -21,7 +21,7 @@ OUT=${OUT:-results.csv}
 PROCESSED=${PROCESSED:-processed.txt}
 LOG_PATH=${LOG_PATH:-logs/evidence.jsonl}
 
-# Script-level controls (owner-finder has its own defaults)
+# Script-level controls (MAILSIEVE has its own defaults)
 QUIET_ENV=${QUIET_ENV:-1}
 RATE_MS=${RATE_MS:-800}
 HASH_EVIDENCE=${HASH_EVIDENCE:-1}
@@ -39,7 +39,7 @@ command -v node >/dev/null 2>&1 || { echo "node is required" >&2; exit 1; }
 # ---- Paths / setup ----
 mkdir -p "$(dirname "$OUT")" "$(dirname "$PROCESSED")" "$(dirname "$LOG_PATH")"
 
-# Header handling: only for CSV output. (If you output TSV/JSONL, you should use owner-finder batch mode instead.)
+# Header handling: only for CSV output. (If you output TSV/JSONL, you should use MAILSIEVE batch mode instead.)
 CSV_HEADER='"company","owner","email"'
 if [[ "$OUT" == *.csv ]]; then
   if [[ ! -f "$OUT" ]] || [[ ! -s "$OUT" ]]; then
@@ -78,7 +78,7 @@ normalize_domain() {
   # - strips leading www.
   # - keeps only first token
   # - basic sanity: must contain a dot
-  # NOTE: owner-finder will do proper PSL normalization; this is just pre-filtering.
+  # NOTE: MAILSIEVE will do proper PSL normalization; this is just pre-filtering.
   sed 's/#.*$//' \
   | awk '{print $1}' \
   | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' \
@@ -130,11 +130,11 @@ echo "Queued: $TOTAL domain(s). Concurrency: $POLITE_CONCURRENCY" >&2
 run_one() {
   local dom="$1"
 
-  # Run owner-finder in single mode and capture exactly one CSV row (no headers)
+  # Run MAILSIEVE in single mode and capture exactly one CSV row (no headers)
   # Use a temp file to avoid partial writes on failure.
   local tmp_out="$WORKDIR/out.$(echo "$dom" | tr -c 'a-z0-9._-' '_').$$"
 
-  # Environment passed to owner-finder
+  # Environment passed to MAILSIEVE
   QUIET="$QUIET_ENV" \
   RATE_MS="$RATE_MS" \
   HASH_EVIDENCE="$HASH_EVIDENCE" \
@@ -143,7 +143,7 @@ run_one() {
   RETRIES="$RETRIES" \
   BACKOFF_MS="$BACKOFF_MS" \
   LOG_PATH="$LOG_PATH" \
-  node owner-finder.mjs --noHeaders --domain "$dom" > "$tmp_out" 2>/dev/null \
+  node mailsieve.mjs --noHeaders --domain "$dom" > "$tmp_out" 2>/dev/null \
     || { rm -f "$tmp_out"; return 0; }
 
   # If the script produced nothing (e.g., network blocked), do not mark processed.
