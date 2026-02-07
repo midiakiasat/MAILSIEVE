@@ -8,3 +8,8 @@ processed.txt
 .processed.set
 
 .DS_Store
+
+*.bak
+*.orig
+*.rej
+*.patch
