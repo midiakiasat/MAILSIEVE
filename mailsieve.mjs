@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /*
-OWNER-FINDER — v5.2.1 HARDENED (batch, resume, robots-aware, GDPR-trim, zero outreach)
+MAILSIEVE — v1.0.0 HARDENED (batch, resume, robots-aware, GDPR-trim, zero outreach)
 
 Modes:
-  Single: node MAILSIEVE.mjs --domain example.com [--paths '/azienda,/chi-siamo'] [--json]
-  Batch:  node MAILSIEVE.mjs --file domains.txt --out results.csv [--format csv|tsv|jsonl]
+  Single: node mailsieve.mjs --domain example.com [--paths '/azienda,/chi-siamo'] [--json]
+  Batch:  node mailsieve.mjs --file domains.txt --out results.csv [--format csv|tsv|jsonl]
 
 Features:
 * Batch mode with resume: dedupes input, skips already-processed from output, idempotent writes
@@ -61,9 +61,13 @@ const argv = yargs(hideBin(process.argv))
   .option("headers", { type: "string", default: "", desc: "Additional request headers as JSON" })
   .option("noHeaders", { type: "boolean", default: false, desc: "Emit no CSV/TSV headers (batch)" })
   .option("concurrency", { type: "number", default: 2, desc: "Batch concurrency (low for politeness)" })
-  .help(false).argv;
+  .help()
+  .alias("h", "help")
+  .showHelpOnFail(true)
+  .argv;
 
-const UA = "OwnerFinder/5.2 (no-sending; robots-aware; contact: compliance@invalid)";
+
+const UA = "MAILSIEVE/1.0 (no-sending; robots-aware; contact: compliance@invalid)";
 const EXTRA_HEADERS = (() => { try { return argv.headers ? JSON.parse(argv.headers) : {}; } catch { return {}; } })();
 const HEADERS = { "User-Agent": UA, Accept: "text/html,application/xhtml+xml", "Accept-Language": "en,it,de,fr,es,pt;q=0.7", ...EXTRA_HEADERS };
 const RATE_MS = argv.rate;
@@ -676,8 +680,17 @@ async function runBatch(filePath, outPath){
   const fmt = detectFormat(outPath, argv.format);
   const processed = loadProcessed(outPath, fmt); // JSONL-only domain resume supported
   const seen = new Set();
-  const input = fs.readFileSync(filePath, 'utf8').split(/\r?\n/).map(normalizeDomainLine).filter(Boolean);
-  const domains = input.filter(d => { const k = d.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  const input = fs.readFileSync(filePath, 'utf8')
+    .split(/\r?\n/)
+    .map(normalizeDomainLine)
+    .filter(Boolean);
+
+  const domains = input.filter(d => {
+    const k = d.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
   const writer = writerFor(outPath, fmt, argv.noHeaders);
 
@@ -688,7 +701,8 @@ async function runBatch(filePath, outPath){
   const next = async () => {
     while (!stopped && active < argv.concurrency && idx < domains.length) {
       const dom = domains[idx++];
-      if (processed.has(dom)) { continue; }
+      if (processed.has(dom)) continue;
+
       active++;
       (async () => {
         try {
@@ -738,10 +752,20 @@ function ensureOut(outPath){
     } else if (argv.domain) {
       await runSingle();
     } else {
-      throw new Error("usage: --domain <domain> | --file domains.txt --out results.csv");
+      throw new Error("usage");
     }
   } catch (e) {
-    if (!QUIET) console.error(String(e?.message || e || 'error'));
+    const isCliUsageError = !argv.domain && !argv.file;
+
+    // If user ran `node mailsieve.mjs` with no args:
+    // print usage (optional) + exit 1
+    if (isCliUsageError) {
+      console.error("usage: --domain <domain> | --file domains.txt --out results.csv");
+    } else if (!QUIET) {
+      // real errors only when QUIET=0
+      console.error(String(e?.message || e || "error"));
+    }
+
     process.exit(1);
   }
 })();
