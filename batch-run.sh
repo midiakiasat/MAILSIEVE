@@ -102,10 +102,17 @@ with_lock() {
   rmdir "$lockdir" 2>/dev/null || true
 }
 
+
 append_line() {
   local file="$1"; shift
   local line="$1"
-  printf '%s\n' "$line" >> "$file"
+  printf "%s\n" "$line" >> "$file"
+}
+
+append_file() {
+  local src="$1"
+  local dst="$2"
+  cat "$src" >> "$dst"
 }
 
 # ---- Build processed set ----
@@ -132,7 +139,11 @@ run_one() {
 
   # Run MAILSIEVE in single mode and capture exactly one CSV row (no headers)
   # Use a temp file to avoid partial writes on failure.
-  local tmp_out="$WORKDIR/out.$(echo "$dom" | tr -c 'a-z0-9._-' '_').$$"
+  local safe_dom
+  safe_dom="$(echo "$dom" | tr -c 'a-z0-9._-' '_')"
+
+  local tmp_out
+  tmp_out="$WORKDIR/out.${safe_dom}.$$"
 
   # Environment passed to MAILSIEVE
   QUIET="$QUIET_ENV" \
@@ -153,16 +164,17 @@ run_one() {
   fi
 
   # Append result row to OUT under lock
-  with_lock "$LOCK_OUT" bash -c 'cat "$1" >> "$2"' bash "$tmp_out" "$OUT"
+  with_lock "$LOCK_OUT" append_file "$tmp_out" "$OUT"
   rm -f "$tmp_out"
 
-  # Record processed domain (normalized as we store it)
-  with_lock "$LOCK_PROCESSED" append_line "$PROCESSED" "$dom"
+  # Record processed domain (store normalized)
+  
+with_lock "$LOCK_PROCESSED" append_line "$PROCESSED" "$(printf "%s\n" "$dom" | normalize_domain | head -n1)"
 }
 
 # ---- Execution strategy ----
 # If POLITE_CONCURRENCY=1, do a simple loop.
-# If >1, use xargs -P (available on GNU; on macOS/BSD, -P exists too).
+# If >1, use xargs -P.
 
 if (( POLITE_CONCURRENCY <= 1 )); then
   while IFS= read -r dom; do
@@ -171,11 +183,11 @@ if (( POLITE_CONCURRENCY <= 1 )); then
   done < "$QUEUE"
 else
   # Export needed functions/vars for subshell execution
-  export -f run_one with_lock append_line
+  export -f run_one with_lock append_line append_file normalize_domain
   export WORKDIR OUT PROCESSED LOG_PATH QUIET_ENV RATE_MS HASH_EVIDENCE TIMEOUT_MS MAX_PAGES RETRIES BACKOFF_MS LOCK_OUT LOCK_PROCESSED
 
-  # shellcheck disable=SC2016
-  cat "$QUEUE" | xargs -I{} -P "$POLITE_CONCURRENCY" bash -c 'run_one "$@"' _ {}
+  # Pass domain as $1 (avoid quoting hell)
+  xargs -I{} -P "$POLITE_CONCURRENCY" bash -c 'run_one "$1"' _ {} < "$QUEUE"
 fi
 
 echo "Done." >&2
